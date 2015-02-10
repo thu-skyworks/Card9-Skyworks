@@ -14,9 +14,11 @@ var server = net.createServer(function(c) { //'connection' listener
 			client: c.remoteAddress + ':' + c.remotePort,
 			reason: 'System',
     });
+  }).on('error', function(){
+  	c.end();
   });
   c.pipe((new parser).on('packet', function(p){
-  	//we could do something here;
+  	console.log(p);
   }));
   
 });
