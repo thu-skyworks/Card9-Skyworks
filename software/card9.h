@@ -12,8 +12,6 @@ struct commandData{
 };
 struct requestData{
 	uint8_t requestType; //0->auth
-	uint8_t reserved; //must be 0x00
-	uint16_t paramSize; //little_endian
 	unsigned char param[];
 };
 struct authParam{
@@ -21,7 +19,5 @@ struct authParam{
 };
 struct responseData{
 	uint8_t responseType; //0->negative 1->positive 2->natural
-	uint8_t reserved; //must be 0x00
-	uint16_t paramSize;
 	unsigned char param[];
 };
