@@ -14,12 +14,15 @@ var logStream = fs.createWriteStream(config.logFile, {
 
 var toWriteBeforeOpen = [];
 
-var writeLog = module.exports = function(jsonObj){
+var writeLog = module.exports = function(jsonObj, callback){
 	if(logFileReady){
-		logStream.write(JSON.stringify(jsonObj));
+		logStream.write(JSON.stringify({time: Date.now(), msg: jsonObj}));
 		logStream.write(", \n");
 	}else{
 		toWriteBeforeOpen.push(jsonObj);
+	}
+	if(callback !== undefined){
+		logStream.once('drain', callback)
 	}
 };
 
