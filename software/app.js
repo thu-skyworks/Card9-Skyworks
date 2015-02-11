@@ -5,6 +5,7 @@ var parser = require('./utils/ProtocolParser');
 var defines = require('./utils/defines');
 var cardAuth = require('./auth/cardAuth');
 var encoder = require('./utils/ProtocolBinarify');
+var local = require('./utils/LocalServer');
 var server = net.createServer(function(c) { //'connection' listener
   var client = c.remoteAddress + ':' + c.remotePort;
   logger({
@@ -18,10 +19,27 @@ var server = net.createServer(function(c) { //'connection' listener
 			client: client,
 			reason: 'System',
     });
+    local.removeListener('command', commandListener);
   }).on('error', function(){
   	c.end();
+    local.removeListener('command', commandListener);
   });
-  
+  var commandListener = function(command){
+  	switch(command){
+  		case defines.commands.doDoorOpen: 
+  		case defines.commands.doAlarmOff:
+  			logger({
+					event: defines.commands.map[command],
+					reason: 'root',
+				});
+				c.write(encoder.command(command));
+				break;
+			default:
+				//Not Allow
+				break;
+  	}
+  }
+  local.on('command', commandListener);
   c.pipe((new parser).on('packet', function(p){
   	switch(p.type){
   		case defines.event:
@@ -81,6 +99,9 @@ var server = net.createServer(function(c) { //'connection' listener
 });
 server.listen(config.bindPort, function(){ //'listening' listener
   logger("Card9 server started");
+  local.create(config.sockFile, function(){  	
+		process.setuid("nobody");
+  })
 }).on('error', function(e){
 	if(e.code == 'EADDRINUSE'){
 		logger("Error: Address already in use, exiting...", function(){
