@@ -1,0 +1,46 @@
+#!/usr/bin/env node
+
+var defines = require('./utils/defines');
+var config = require('./config');
+var net = require('net');
+
+function usage(){
+	process.stderr.write(
+'一个控制 Card9 的工具                        \n\
+用法: card9ctl <command>                 \n\
+                                         \n\
+<command> 可以是：                        \n\
+    doorOpen          打开门禁            \n\
+    alarmOff          消除警报音          \n\
+', 'utf-8');
+}
+
+var command = -1;
+switch(process.argv[2]){
+	case 'doorOpen':
+		command = defines.commands.doDoorOpen;
+		break;
+	case 'alarmOff':
+		command = defines.commands.doAlarmOff;
+		break;
+	default:
+		usage();
+		process.stderr.once('drain', function(){
+			process.exit(1);
+		});
+		break;
+}
+if(command != -1){
+	var client = net.createConnection({path: config.sockFile}, function(){
+		client.write(new Buffer([command]));
+		client.once('drain', function(){
+			client.end();
+			console.log("成功发送命令。");
+		});
+	}).once('error', function(err){
+		console.error("在通过“" + config.sockFile + "”与守护进程建立连接时，发生了错误：");
+		console.error(err);
+		console.error("可能权限不足或守护进程未启动。");
+		process.exit(1);
+	});
+}
