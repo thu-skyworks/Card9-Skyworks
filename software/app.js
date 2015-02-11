@@ -56,9 +56,9 @@ var server = net.createServer(function(c) { //'connection' listener
   						event: 'Authenticating Card',
   						client: client,
   						reason: 'Client',
-  						data: p.data.type.data,
+  						data: p.data.param,
   					});
-						cardAuth(p.data.type.data, function(err, pass){
+						cardAuth(p.data.param, function(err, pass){
 							if(err){
 								logger({
 									event: 'Error',
@@ -78,7 +78,7 @@ var server = net.createServer(function(c) { //'connection' listener
 									logger({
 										event: 'Auth Deny',
 										reason: 'System',
-										identity: p.data.type.data,
+										identity: p.data.param,
 									});
 									c.write(encoder.response(defines.responses.negative));
 								}
