@@ -12,18 +12,42 @@ module.exports = {
 		alarmDidOff: 5,
 		doorWillOpen: 6,
 		alarmWillOff: 7,
+		map: [
+			"cardDidScan", 
+			"doorDidOpen", 
+			"doorDidClose", 
+			"doorReleaseDidTriggered", 
+			"alarmDidOn", 
+			"alarmDidOff", 
+			"doorWillOpen", 
+			"alarmWillOff", 
+		],
 	},
 	commands: {
 		doDoorOpen: 0,
 		doAlarmOn: 1,
 		doAlarmOff: 2,
+		map: [
+			"doDoorOpen",
+			"doAlarmOn",
+			"doAlarmOff",
+		],
 	},
 	requests: {
 		auth: 0,
+		map: [
+			"auth",
+		],
 	},
 	responses: {
 		negative: 0,
 		positive: 1,
 		natural: 2,
+		map: [
+			"negative",
+			"positive",
+			"natural",
+		],
 	},
+	map: ['event', 'command', 'request', 'response'],
 }

@@ -22,7 +22,7 @@ var writeLog = module.exports = function(jsonObj, callback){
 		toWriteBeforeOpen.push(jsonObj);
 	}
 	if(callback !== undefined){
-		logStream.once('drain', callback)
+		logStream.once('drain', callback);
 	}
 };
 
