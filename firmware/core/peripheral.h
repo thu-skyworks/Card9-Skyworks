@@ -8,6 +8,7 @@
 #define alarmPin      6
 
 #define DetectorSwitchDelay 80
+#define LongPressThreshold 3000
 
 class Door
 {
@@ -42,6 +43,27 @@ public:
     bool IsAlarmOn(){
         return on;
     }
+};
+
+class Button
+{
+public:
+    enum Action
+    {
+        ActionNone, ActionPressed, ActionLongPressed
+    };
+private:
+    unsigned long lastChanged, pressTime;
+    unsigned char lastState;
+    Action latestAction;
+public:
+    void Init();
+    Action LatestAction(){
+        Action t = latestAction;
+        latestAction = ActionNone;
+        return t;
+    }
+    void Check();
 };
 
 #endif

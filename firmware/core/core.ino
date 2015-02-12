@@ -14,6 +14,7 @@ byte mac[] = {0xDE, 0xAD, 0x00, 0x09, 0x00, 0x09};
 EthernetClient client;
 Door door;
 Alarm alarm;
+Button button;
 
 void software_Reset() // Restarts program from beginning but does not reset the peripherals and registers
 {
@@ -44,6 +45,7 @@ void setup() {
   pinMode(led, OUTPUT);
   door.Init();
   alarm.Init();
+  button.Init();
  
   // Open serial communications and wait for port to open:
   Serial.begin(9600);
@@ -131,7 +133,7 @@ void renewDhcp()
 {
   static unsigned long previousMillis = 0;
   unsigned long currentMillis = millis();
-  if(currentMillis - previousMillis > 30){
+  if(currentMillis - previousMillis > 30000){
     previousMillis = currentMillis; 
     Ethernet.maintain();
   }
@@ -140,8 +142,17 @@ void renewDhcp()
 void loop() {
   static uint8_t connect_retries = 0;
 
+  button.Check();
+  
   if(door.UpdateState()){
     alarm.On();
+  }
+  Button::Action a = button.LatestAction();
+  if(a == Button::ActionPressed){
+    sendEventPacket(DoorReleaseDidTriggered);
+    door.Open();
+  }else if(a == Button::ActionLongPressed){
+    alarm.Off();
   }
 
   if (!client.connected()) {
