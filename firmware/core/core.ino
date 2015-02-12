@@ -1,6 +1,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include "protocol.h"
+#include "common.h"
 #include "peripheral.h"
 
 const int led = 13; //LED pin config
@@ -89,11 +90,19 @@ void parsePacket(packet* p)
             break;
       }
       break;
-    case PacketTypeRequest:
     case PacketTypeResponse:
-    case PacketTypeEvent:
       break;
   }
+}
+
+void sendEventPacket(uint8_t eventType)
+{
+  struct packet p;
+  p.characteristicAndVersion = PacketIdentifier;
+  p.type = PacketTypeEvent;
+  p.payloadSize = sizeof(eventPayload);
+  p.payload.event.eventType = eventType;
+  client.write((byte*)&p, sizeof(struct packet));
 }
 
 void receivePacket(byte charRecved)
@@ -132,7 +141,6 @@ void loop() {
   static uint8_t connect_retries = 0;
 
   if(door.UpdateState()){
-    Serial.println("Door opened illegally");
     alarm.On();
   }
 

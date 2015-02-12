@@ -1,4 +1,6 @@
 #include "peripheral.h"
+#include "protocol.h"
+#include "common.h"
 
 void Door::Init()
 {
@@ -38,6 +40,8 @@ bool Door::UpdateState()
     case DoorLocked:
         if (detect()) {
             state = DoorOpened;
+            Serial.println("DoorOpened Illegally");
+            sendEventPacket(DoorDidOpen);
             return true;
         }
         break;
@@ -46,6 +50,7 @@ bool Door::UpdateState()
             digitalWrite(lockMagnetPin, HIGH);
             state = DoorOpened;
             Serial.println("DoorOpened");
+            sendEventPacket(DoorDidOpen);
         }
         break;
     case DoorOpened:
@@ -53,6 +58,7 @@ bool Door::UpdateState()
             digitalWrite(lockMagnetPin, HIGH);
             state = DoorLocked;
             Serial.println("DoorLocked");
+            sendEventPacket(DoorDidClose);
         }
         break;
     }
@@ -67,6 +73,9 @@ void Alarm::Init()
 
 void Alarm::setAlarm(bool _on)
 {
-    on = _on;
-    digitalWrite(alarmPin, _on ? HIGH : LOW);
+    if(on != _on){
+        on = _on;
+        digitalWrite(alarmPin, _on ? HIGH : LOW);
+        sendEventPacket(_on ? AlarmDidOn : AlarmDidOff);
+    }
 }
