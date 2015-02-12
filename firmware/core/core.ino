@@ -1,13 +1,18 @@
 #include <SPI.h>
 #include <Ethernet.h>
+#include "protocol.h"
+#include "peripheral.h"
 
 const int led = 13; //LED pin config
-byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-#define SERVER_HOST "192.168.1.106"
-#define SERVER_PORT 2828
+byte mac[] = {0xDE, 0xAD, 0x00, 0x09, 0x00, 0x09};
+#define SERVER_HOST "192.168.1.103"
+#define SERVER_PORT 39999
 #define MAX_CONNECT_RETRIES 5
+#define MAX_PACKET_SIZE 16
 
 EthernetClient client;
+Door door;
+Alarm alarm;
 
 void software_Reset() // Restarts program from beginning but does not reset the peripherals and registers
 {
@@ -36,6 +41,8 @@ void ErrorConnect() //Indicates connecting error occurred
 
 void setup() {
   pinMode(led, OUTPUT);
+  door.Init();
+  alarm.Init();
  
   // Open serial communications and wait for port to open:
   Serial.begin(9600);
@@ -64,8 +71,51 @@ void setup() {
 
 }
 
-void parseCmd(char charRecved)
+void parsePacket(packet* p)
 {
+  Serial.print(F("Packet type: "));
+  Serial.println(p->type);
+  switch(p->type){
+    case PacketTypeCommand:
+      switch (p->payload.command.commandType) {
+          case DoDoorOpen:
+            door.Open();
+            break;
+          case DoAlarmOn:
+            alarm.On();
+            break;
+          case DoAlarmOff:
+            alarm.Off();
+            break;
+      }
+      break;
+    case PacketTypeRequest:
+    case PacketTypeResponse:
+    case PacketTypeEvent:
+      break;
+  }
+}
+
+void receivePacket(byte charRecved)
+{
+  static uint8_t packetBuffer[MAX_PACKET_SIZE];
+  static uint8_t ptr;
+  struct packet* pPacket = (struct packet*)packetBuffer;
+  if(!ptr){
+    if(charRecved == PacketIdentifier)
+      packetBuffer[ptr++] = charRecved;
+  }else if(ptr < MAX_PACKET_SIZE-1){
+    packetBuffer[ptr++] = charRecved;
+    if(ptr >= 4){ //payloadSize field already received
+      if(pPacket->payloadSize == ptr - 4){ //packet receiving competed
+        parsePacket(pPacket);
+        ptr = 0; //receiving next packet
+      }else if(pPacket->payloadSize > MAX_PACKET_SIZE - 4){
+        Serial.println("Packet is too long");
+        ptr = 0; //restart packet receiving
+      }
+    }
+  }
 }
 
 void renewDhcp()
@@ -80,6 +130,12 @@ void renewDhcp()
 
 void loop() {
   static uint8_t connect_retries = 0;
+
+  if(door.UpdateState()){
+    Serial.println("Door opened illegally");
+    alarm.On();
+  }
+
   if (!client.connected()) {
     digitalWrite(led, LOW);
     client.stop();
@@ -99,7 +155,7 @@ void loop() {
     }
   }
   while (client.available() > 0){
-    parseCmd(client.read());
+    receivePacket(client.read());
   }
   renewDhcp();
 }
