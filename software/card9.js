@@ -99,8 +99,10 @@ var server = net.createServer(function(c) { //'connection' listener
 });
 server.listen(config.bindPort, function(){ //'listening' listener
   logger("Card9 server started");
-  local.create(config.sockFile, function(){  	
-		process.setuid("nobody");
+  local.create(config.sockFile, function(){
+  	if(config.setUid){
+			process.setuid(config.setUid);
+		}
   })
 }).on('error', function(e){
 	if(e.code == 'EADDRINUSE'){

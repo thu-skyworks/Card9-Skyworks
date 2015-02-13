@@ -1,0 +1,10 @@
+{
+  "name": "card9",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "sudo node ./card9.js"
+  },
+  "dependencies": {
+  }
+}
