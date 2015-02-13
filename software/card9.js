@@ -109,3 +109,4 @@ server.listen(config.bindPort, function(){ //'listening' listener
 		});      
 	}
 });
+module.exports = server;
