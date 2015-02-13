@@ -1,8 +1,11 @@
 #include <SPI.h>
 #include <Ethernet.h>
+
 #include "protocol.h"
 #include "common.h"
 #include "peripheral.h"
+#include "rfid.h"
+
 
 const int led = 13; //LED pin config
 byte mac[] = {0xDE, 0xAD, 0x00, 0x09, 0x00, 0x09};
@@ -15,6 +18,7 @@ EthernetClient client;
 Door door;
 Alarm alarm;
 Button button;
+RFID rfid;
 
 void software_Reset() // Restarts program from beginning but does not reset the peripherals and registers
 {
@@ -53,6 +57,9 @@ void setup() {
   while (!Serial) {
     ; // wait for serial port to connect. Needed for Leonardo only
   }
+  Serial.println("Card9 controller started");
+
+  rfid.Init();
 
   // start the Ethernet connection:
   Serial.println("Trying to get an IP address using DHCP");
@@ -143,7 +150,7 @@ void loop() {
   static uint8_t connect_retries = 0;
 
   button.Check();
-  
+
   if(door.UpdateState()){
     alarm.On();
   }
@@ -153,6 +160,16 @@ void loop() {
     door.Open();
   }else if(a == Button::ActionLongPressed){
     alarm.Off();
+  }
+
+  rfid.Poll();
+  if(rfid.Found()){
+    sendEventPacket(CardDidScan);
+    if(rfid.SkeletonKey()){
+      door.Open();
+    }
+    delay(500);
+    rfid.Next();
   }
 
   if (!client.connected()) {
