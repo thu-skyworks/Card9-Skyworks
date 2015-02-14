@@ -6,5 +6,6 @@
     "start": "sudo node ./card9.js"
   },
   "dependencies": {
+    "request": "^2.53.0"
   }
 }
