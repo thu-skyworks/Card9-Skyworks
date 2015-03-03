@@ -9,7 +9,7 @@
 
 const int led = 13; //LED pin config
 byte mac[] = {0xDE, 0xAD, 0x00, 0x09, 0x00, 0x09};
-#define SERVER_HOST "192.168.1.103"
+#define SERVER_HOST "192.168.1.30"
 #define SERVER_PORT 39999
 #define MAX_CONNECT_RETRIES 5
 #define MAX_PACKET_SIZE 16
@@ -54,12 +54,14 @@ void setup() {
   // Open serial communications and wait for port to open:
   Serial.begin(9600);
   // this check is only needed on the Leonardo:
+#if 1
   while (!Serial) {
     ; // wait for serial port to connect. Needed for Leonardo only
   }
+#endif
   Serial.println("Card9 controller started");
 
-  rfid.Init();
+  rfid.Init(); 
 
   // start the Ethernet connection:
   Serial.println("Trying to get an IP address using DHCP");
@@ -100,6 +102,14 @@ void parsePacket(packet* p)
       }
       break;
     case PacketTypeResponse:
+      switch (p->payload.response.responseType) {
+          case ResponsePositive:
+            door.Open();
+            break;
+          case ResponseNegative:
+          case ResponseNatural:
+            break;
+      }
       break;
   }
 }
@@ -112,6 +122,18 @@ void sendEventPacket(uint8_t eventType)
   p.payloadSize = sizeof(eventPayload);
   p.payload.event.eventType = eventType;
   client.write((byte*)&p, sizeof(struct packet));
+}
+
+void sendAuthPacket(uint8_t uidLen, uint8_t* uid)
+{
+  struct packet *p = (packet*)new char[sizeof(packet) + uidLen];
+  p->characteristicAndVersion = PacketIdentifier;
+  p->type = PacketTypeRequest;
+  p->payloadSize = sizeof(requestPayload) + uidLen;
+  p->payload.request.requestType = RequestAuth;
+  memcpy(p->payload.request.param, uid, uidLen);
+  client.write((byte*)p, sizeof(struct packet) + uidLen);
+  delete p;
 }
 
 void receivePacket(byte charRecved)
@@ -167,8 +189,11 @@ void loop() {
     sendEventPacket(CardDidScan);
     if(rfid.SkeletonKey()){
       door.Open();
+    }else{
+      uint8_t uidLen;
+      uint8_t* uid = rfid.GetUid(uidLen);
+      sendAuthPacket(uidLen, uid);
     }
-    delay(500);
     rfid.Next();
   }
 

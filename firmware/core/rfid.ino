@@ -1,11 +1,11 @@
 #include "rfid.h"
 #include <Wire.h>
-#include <PN532_I2C.h>
+#include <PN532_HSU.h>
 #include "PN532.h"
 
 
-static PN532_I2C pn532_i2c(Wire);
-static PN532 pn532(pn532_i2c);
+static PN532_HSU pn532_hsu(Serial1);
+static PN532 pn532(pn532_hsu);
 
 uint8_t RFID::skeletonKey[8] = {0x64,0x1C,0x6D,0xDB};
 uint8_t RFID::skeletonKeyLength = 4;
@@ -15,7 +15,7 @@ void RFID::Poll()
 {
   boolean success;
 
-  if(uidLength > 0){ //A card had been found previously
+  if(Found()){ //A card had been found previously
     return;
   }
   
@@ -26,10 +26,22 @@ void RFID::Poll()
     return;
   }
 
+  if(card == Card_14443B){
+    if(pn532.stuCardIsPresent()){ //Card doesn't leave yet
+      return;
+    }else{
+      pn532.resetConfigFor14443B();
+      card = Card_None;
+    }
+  }else if(card == Card_14443A){
+    pn532.inRelease();
+    card = Card_None;
+  }
+
   // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
   // 'uid' will be populated with the UID, and uidLength will indicate
   // if the uid is 4 bytes (Mifare Classic) or 7 bytes (Mifare Ultralight)
-  success = pn532.readPassiveTargetID(PN532_MIFARE_ISO14443A, &uid[0], &uidLength, 10);
+  success = pn532.readPassiveTargetID(PN532_MIFARE_ISO14443A, &uid[0], &uidLength, 200);
   
   if (success) {
     Serial.println("Found a card!");
@@ -40,20 +52,45 @@ void RFID::Poll()
       Serial.print(" 0x");Serial.print(uid[i], HEX); 
     }
     Serial.println("");
-    // Wait 1 second before continuing
-    // delay(1000);
+    card = Card_14443A;
+    found = true;
   }
   else
   {
     // PN532 probably timed out waiting for a card
-    Serial.println("Timed out waiting for a card");
-    uidLength = 0;
+    //Serial.println("Timed out waiting for a card");
+  }
+
+  static uint8_t AFI[] = {0};
+  success = pn532.inListPassiveTarget(PN532_106KBPS_ISO14443B, sizeof(AFI) , AFI, 200);
+  if (success) {
+    uint8_t cardId[3]; 
+    uint8_t expire[3]; 
+    char studentId[11];
+
+    pn532.inRelease();
+    success = pn532.readTsighuaStuCard(cardId, expire, studentId);
+    if(success){
+      Serial.println("Found student card!");
+      Serial.print("Student Number: "); Serial.println(studentId);
+      for(int i=0; i<5; i++){
+        uid[i] = studentId[i+5];
+      }
+      for(int i=0; i<3; i++){
+        uid[i+5] = cardId[i];
+      }
+      uidLength = 8;
+      card = Card_14443B;
+      found = true;
+    }
+  }else{
+
   }
 }
 
 bool RFID::SkeletonKey()
 {
-  if(uidLength > 0){
+  if(card == Card_14443A){
     if(uidLength != skeletonKeyLength)
       return false;
     for(int i=0; i<uidLength; i++){

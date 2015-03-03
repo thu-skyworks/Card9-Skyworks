@@ -1,7 +1,7 @@
 ####固件开发环境
 * Arduino 1.6
 * github.com/Wiznet/WIZ_Ethernet_Library
-* github.com/Seeed-Studio/PN532
+* github.com/593141477/PN532
 
 Library安装方法(Arduino对库的支持实在太hack了)：
 
