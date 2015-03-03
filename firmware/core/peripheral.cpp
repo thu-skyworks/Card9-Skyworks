@@ -9,6 +9,7 @@ void Door::Init()
     digitalWrite(lockMagnetPin, HIGH);//lock door
     digitalWrite(lockDetectPin, HIGH);//enable pull-up
 
+    delay(400);
     lastDectVal = digitalRead(lockDetectPin);
     lastDectTime = millis();
 }
@@ -17,6 +18,7 @@ void Door::Open()
 {
     if (state == DoorLocked) {
         digitalWrite(lockMagnetPin, LOW);
+        preparedTimer = millis();
         state = DoorPreparedOpen;
         Serial.println("DoorPreparedOpen");
     }
@@ -46,7 +48,7 @@ bool Door::UpdateState()
         }
         break;
     case DoorPreparedOpen:
-        if (detect()) {
+        if (millis() - preparedTimer > DoorOpenTimeOut) {
             digitalWrite(lockMagnetPin, HIGH);
             state = DoorOpened;
             Serial.println("DoorOpened");
