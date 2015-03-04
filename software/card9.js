@@ -97,7 +97,7 @@ var server = net.createServer(function(c) { //'connection' listener
   }));
   
 });
-server.listen(config.bindPort, function(){ //'listening' listener
+server.listen(config.bindPort, config.bindAddress, function(){ //'listening' listener
   logger("Card9 server started");
   local.create(config.sockFile, function(){
   	if(config.setUid){
