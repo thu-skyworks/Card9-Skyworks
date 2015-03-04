@@ -32,6 +32,7 @@ public:
     {
         found = false;
     }
+    void SetLedOn(bool on); 
 };
 
 #endif

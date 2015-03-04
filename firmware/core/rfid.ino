@@ -32,6 +32,7 @@ void RFID::Poll()
     }else{
       pn532.resetConfigFor14443B();
       card = Card_None;
+      SetLedOn(false);
     }
   }
 
@@ -46,6 +47,7 @@ void RFID::Poll()
       return;
     }else{
       card = Card_None;
+      SetLedOn(false);
     }
   }
 
@@ -61,6 +63,7 @@ void RFID::Poll()
     pn532.inRelease(0); //Release all cards
     card = Card_14443A;
     found = true;
+    SetLedOn(true);
   }
   else
   {
@@ -89,6 +92,7 @@ void RFID::Poll()
       uidLength = 8;
       card = Card_14443B;
       found = true;
+      SetLedOn(true);
     }
   }else{
 
@@ -131,4 +135,11 @@ void RFID::Init()
   
   // configure board to read RFID tags
   pn532.SAMConfig();
+}
+
+void RFID::SetLedOn(bool on){
+  if(on)
+    pn532.writeGPIOP7(0);
+  else
+    pn532.writeGPIOP7(1<<PN532_GPIO_P71);
 }
