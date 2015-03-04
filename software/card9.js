@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 var net = require('net');
 var config = require('./config');
 var logger = require('./logger');
