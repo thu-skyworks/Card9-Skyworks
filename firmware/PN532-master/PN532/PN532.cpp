@@ -183,6 +183,26 @@ bool PN532::writeGPIO(uint8_t pinstate)
     return (0 < HAL(readResponse)(pn532_packetbuffer, sizeof(pn532_packetbuffer)));
 }
 
+bool PN532::writeGPIOP7(uint8_t pinstate)
+{
+    pinstate &= (1 << PN532_GPIO_P71) | (1 << PN532_GPIO_P72);
+
+    // Fill command buffer
+    pn532_packetbuffer[0] = PN532_COMMAND_WRITEGPIO;
+    pn532_packetbuffer[1] = 0x00;  // P3 Pins are not changed
+    pn532_packetbuffer[2] = PN532_GPIO_VALIDATIONBIT | pinstate;  // P7 Pins
+
+    DMSG("Writing P7 GPIO: ");
+    DMSG_HEX(pn532_packetbuffer[1]);
+    DMSG("\n");
+
+    // Send the WRITEGPIO command (0x0E)
+    if (HAL(writeCommand)(pn532_packetbuffer, 3))
+        return 0;
+
+    return (0 < HAL(readResponse)(pn532_packetbuffer, sizeof(pn532_packetbuffer)));
+}
+
 /**************************************************************************/
 /*!
     Reads the state of the PN532's GPIO pins
@@ -269,6 +289,17 @@ bool PN532::setPassiveActivationRetries(uint8_t maxRetries)
     return (0 < HAL(readResponse)(pn532_packetbuffer, sizeof(pn532_packetbuffer)));
 }
 
+bool PN532::rfConfiguration(uint8_t item, uint8_t dataLen, const uint8_t* data)
+{
+    pn532_packetbuffer[0] = PN532_COMMAND_RFCONFIGURATION;
+    pn532_packetbuffer[1] = item;
+
+    if (HAL(writeCommand)(pn532_packetbuffer, 2, data, dataLen))
+        return 0x0;  // no ACK
+
+    return (0 < HAL(readResponse)(pn532_packetbuffer, 0));
+}
+
 /***** ISO14443A Commands ******/
 
 /**************************************************************************/
@@ -280,11 +311,13 @@ bool PN532::setPassiveActivationRetries(uint8_t maxRetries)
                           with the card's UID (up to 7 bytes)
     @param  uidLength     Pointer to the variable that will hold the
                           length of the card's UID.
+    @param  timeout       The number of tries before timing out
+    @param  inlist        If set to true, the card will be inlisted
 
     @returns 1 if everything executed properly, 0 for an error
 */
 /**************************************************************************/
-bool PN532::readPassiveTargetID(uint8_t cardbaudrate, uint8_t *uid, uint8_t *uidLength, uint16_t timeout)
+bool PN532::readPassiveTargetID(uint8_t cardbaudrate, uint8_t *uid, uint8_t *uidLength, uint16_t timeout, bool inlist)
 {
     pn532_packetbuffer[0] = PN532_COMMAND_INLISTPASSIVETARGET;
     pn532_packetbuffer[1] = 1;  // max 1 cards at once (we can set this to 2 later)
@@ -328,6 +361,10 @@ bool PN532::readPassiveTargetID(uint8_t cardbaudrate, uint8_t *uid, uint8_t *uid
 
     for (uint8_t i = 0; i < pn532_packetbuffer[5]; i++) {
         uid[i] = pn532_packetbuffer[6 + i];
+    }
+
+    if (inlist) {
+        inListedTag = pn532_packetbuffer[1];
     }
 
     return 1;
@@ -731,19 +768,19 @@ bool PN532::inDataExchange(uint8_t *send, uint8_t sendLength, uint8_t *response,
             peer acting as card/responder.
 */
 /**************************************************************************/
-bool PN532::inListPassiveTarget()
+bool PN532::inListPassiveTarget(uint8_t cardbaudrate, uint8_t initiatorDataLen, uint8_t* initiatorData, uint16_t timeout)
 {
     pn532_packetbuffer[0] = PN532_COMMAND_INLISTPASSIVETARGET;
     pn532_packetbuffer[1] = 1;
-    pn532_packetbuffer[2] = 0;
+    pn532_packetbuffer[2] = cardbaudrate;
 
     DMSG("inList passive target\n");
 
-    if (HAL(writeCommand)(pn532_packetbuffer, 3)) {
+    if (HAL(writeCommand)(pn532_packetbuffer, 3, initiatorData, initiatorDataLen)) {
         return false;
     }
 
-    int16_t status = HAL(readResponse)(pn532_packetbuffer, sizeof(pn532_packetbuffer), 30000);
+    int16_t status = HAL(readResponse)(pn532_packetbuffer, sizeof(pn532_packetbuffer), timeout);
     if (status < 0) {
         return false;
     }
@@ -754,6 +791,88 @@ bool PN532::inListPassiveTarget()
 
     inListedTag = pn532_packetbuffer[1];
 
+    return true;
+}
+
+/**************************************************************************/
+/*!
+    @brief  Basic data exchanges between the PN532 and a target.
+
+    @param  send            Pointer to data to send
+    @param  sendLength      Length of the data to send
+    @param  response        Pointer to response data
+    @param  responseLength  Pointer to the response data length
+*/
+/**************************************************************************/
+bool PN532::inCommunicateThru(const uint8_t *send, uint8_t sendLength, uint8_t *response, uint8_t *responseLength)
+{
+    uint8_t i;
+
+    pn532_packetbuffer[0] = PN532_COMMAND_INCOMMUNICATETHRU;
+
+    if (HAL(writeCommand)(pn532_packetbuffer, 1, send, sendLength)) {
+        return false;
+    }
+
+    int16_t status = HAL(readResponse)(response, *responseLength, 1000);
+    if (status < 0) {
+        return false;
+    }
+
+    if ((response[0] & 0x3f) != 0) {
+        DMSG("Status code indicates an error\n");
+        return false;
+    }
+
+    uint8_t length = status;
+    length -= 1;
+
+    if (length > *responseLength) {
+        length = *responseLength; // silent truncation...
+    }
+
+    for (uint8_t i = 0; i < length; i++) {
+        response[i] = response[i + 1];
+    }
+    *responseLength = length;
+
+    return true;
+}
+
+bool PN532::writeRegister(uint8_t number, const uint16_t *addrs, const uint8_t *values){
+    uint8_t j = 1;
+    pn532_packetbuffer[0] = PN532_COMMAND_WRITEREGISTER;
+    for (uint8_t i = 0; i < number; ++i)
+    {
+        pn532_packetbuffer[j++] = addrs[i] >> 8;
+        pn532_packetbuffer[j++] = addrs[i] & 0xff;
+        pn532_packetbuffer[j++] = values[i];
+    }
+    if (HAL(writeCommand)(pn532_packetbuffer, j)) {
+        return false;
+    }
+    int16_t status = HAL(readResponse)(pn532_packetbuffer, 0, 100);
+    if (status < 0) {
+        return false;
+    }
+    return true;
+}
+
+bool PN532::readRegister(uint8_t number, const uint16_t *addrs, uint8_t *values){
+    uint8_t j = 1;
+    pn532_packetbuffer[0] = PN532_COMMAND_READREGISTER;
+    for (uint8_t i = 0; i < number; ++i)
+    {
+        pn532_packetbuffer[j++] = addrs[i] >> 8;
+        pn532_packetbuffer[j++] = addrs[i] & 0xff;
+    }
+    if (HAL(writeCommand)(pn532_packetbuffer, j)) {
+        return false;
+    }
+    int16_t status = HAL(readResponse)(values, number, 100);
+    if (status < 0) {
+        return false;
+    }
     return true;
 }
 
@@ -872,4 +991,192 @@ int16_t PN532::inRelease(const uint8_t relevantTarget){
     return HAL(readResponse)(pn532_packetbuffer, sizeof(pn532_packetbuffer));
 }
 
+void PN532::configFor14443B()
+{
+    uint8_t param[] = {1};
+    rfConfiguration(1, 1, param); //RF On
+    delay(50);
+    setPN532RegsForTypeB();
+}
+
+void PN532::resetConfigFor14443B()
+{
+    uint8_t param[] = {0};
+    restorePN532RegsForTypeB();
+    rfConfiguration(1, 1, param); //RF Off
+}
+
+bool PN532::readTsighuaStuCard(uint8_t cardId[3], uint8_t expire[3], char studentId[11])
+{
+    bool result;
+    configFor14443B();
+    result = doReadTsighuaStuCard(cardId, expire, studentId);
+    return result;
+}
+bool PN532::doReadTsighuaStuCard(uint8_t cardId[3], uint8_t expire[3], char studentId[11])
+{
+    uint8_t sz;
+
+    static uint8_t cmd_atqb[] = {0x05, 0, 0, 0x71, 0xff};
+    // ComputeCrc(CRC_B, cmd_atqb, sizeof(cmd_atqb)-2, cmd_atqb+3, cmd_atqb+4);
+    sz = sizeof(pn532_packetbuffer);
+    if(!inCommunicateThru(cmd_atqb, sizeof(cmd_atqb), pn532_packetbuffer, &sz))
+        return false;
+    DMSG("ATQB returned"); DMSG_INT(sz); DMSG(" bytes\n");
+
+    uint8_t cmd_attrib[] = {
+        0x1d,
+        /* PUPI */ pn532_packetbuffer[1], pn532_packetbuffer[2], pn532_packetbuffer[3], pn532_packetbuffer[4], 
+        0x00, 0x08, 0x00, 0x00,
+        /* CRC */ 0, 0
+    };
+    ComputeCrc(CRC_B, cmd_attrib, sizeof(cmd_attrib)-2, cmd_attrib+9, cmd_attrib+10);
+    sz = sizeof(pn532_packetbuffer);
+    if(!inCommunicateThru(cmd_attrib, sizeof(cmd_attrib), pn532_packetbuffer, &sz))
+        return false;
+    DMSG("ATTRIB returned"); DMSG_INT(sz); DMSG(" bytes\n");
+
+    static uint8_t cmd_cid[] = {0x0b, 0x00, 0x00, 0xb0, 0x95, 0x00, 0x0f, 0x5d, 0xd3};
+    sz = sizeof(pn532_packetbuffer);
+    if(!inCommunicateThru(cmd_cid, sizeof(cmd_cid), pn532_packetbuffer, &sz))
+        return false;
+    DMSG("CMD-CID returned"); DMSG_INT(sz); DMSG(" bytes\n");
+    for (int i = 0; i < 3; ++i)
+    {
+        cardId[i] = pn532_packetbuffer[9+i];
+    }
+    for (int i = 0; i < 3; ++i)
+    {
+        expire[i] = pn532_packetbuffer[14+i];
+    }
+
+    static uint8_t cmd_2[] = {0x0b, 0x00, 0x00, 0xa4, 0x04, 0x00, 0x09, 0xa0, 0x00, 0x00, 0x00, 0x03, 0x86, 0x98, 0x07, 0x01, 0x6e, 0x1b};
+    sz = sizeof(pn532_packetbuffer);
+    if(!inCommunicateThru(cmd_2, sizeof(cmd_2), pn532_packetbuffer, &sz))
+        return false;
+    DMSG("CMD-2 returned"); DMSG_INT(sz); DMSG(" bytes\n");
+
+    static uint8_t cmd_3[] = {0x0a, 0x00, 0x00, 0xb0, 0x95, 0x00, 0x1e, 0x80, 0x4d};
+    sz = sizeof(pn532_packetbuffer);
+    if(!inCommunicateThru(cmd_3, sizeof(cmd_3), pn532_packetbuffer, &sz))
+        return false;
+    DMSG("CMD-3 returned"); DMSG_INT(sz); DMSG(" bytes\n");
+
+    static uint8_t cmd_sid[] = {0x0b, 0x00, 0x00, 0xb0, 0x96, 0x1c, 0x0a, 0xa5, 0x57};
+    sz = sizeof(pn532_packetbuffer);
+    if(!inCommunicateThru(cmd_sid, sizeof(cmd_sid), pn532_packetbuffer, &sz))
+        return false;
+    DMSG("CMD-SID returned"); DMSG_INT(sz); DMSG(" bytes\n");
+    for (int i = 0; i < 10; ++i)
+    {
+        studentId[i] = pn532_packetbuffer[2+i];
+    }
+    studentId[10] = '\0';
+
+    return true;
+}
+bool PN532::stuCardIsPresent()
+{
+    uint8_t sz;
+    static uint8_t cmd_3[] = {0x0a, 0x00, 0x00, 0xb0, 0x95, 0x00, 0x1e, 0x80, 0x4d};
+    sz = sizeof(pn532_packetbuffer);
+    if(!inCommunicateThru(cmd_3, sizeof(cmd_3), pn532_packetbuffer, &sz))
+        return false;
+    DMSG("CMD-3 returned"); DMSG_INT(sz); DMSG(" bytes\n");
+    return true;
+}
+
+unsigned short PN532::UpdateCrc(unsigned char ch, unsigned short *lpwCrc)
+{
+    ch = (ch ^ (unsigned char)((*lpwCrc) & 0x00FF));
+    ch = (ch ^ (ch << 4));
+    *lpwCrc = (*lpwCrc >> 8) ^ ((unsigned short)ch << 8) ^ ((unsigned short)ch << 3) ^ ((unsigned short)ch >> 4);
+    return (*lpwCrc);
+}
+void PN532::ComputeCrc(uint8_t CRCType, uint8_t *Data, uint8_t Length, uint8_t *TransmitFirst, uint8_t *TransmitSecond)
+{
+    unsigned char chBlock;
+    unsigned short wCrc;
+    switch (CRCType) {
+    case CRC_A:
+        wCrc = 0x6363; /* ITU-V.41 */
+        break;
+    case CRC_B:
+        wCrc = 0xFFFF; /* ISO/IEC 13239 (formerly ISO/IEC 3309) */ 
+        break;
+    default:
+        return;
+    }
+    do {
+        chBlock = *Data++; UpdateCrc(chBlock, &wCrc);
+    } while (--Length);
+    if (CRCType == CRC_B)
+        wCrc = ~wCrc; /* ISO/IEC 13239 (formerly ISO/IEC 3309) */ *TransmitFirst = (uint8_t) (wCrc & 0xFF);
+    *TransmitSecond = (uint8_t) ((wCrc >> 8) & 0xFF);
+    return;
+}
+
+void PN532::setPN532RegsForTypeB()
+{
+    if(!readRegister(6, registerAddrForTypeB, registerValueBackup)){
+        DMSG("failed to backup registers for type B\n");
+        return;
+    }
+    if(!readRegister(6, registerAddrForTypeB+6, registerValueBackup+6)){
+        DMSG("failed to backup registers for type B\n");
+        return;
+    }
+    if(!writeRegister(6, registerAddrForTypeB, registerValueForTypeB)){
+        DMSG("failed to set registers for type B\n");
+        return;
+    }
+    if(!writeRegister(6, registerAddrForTypeB+6, registerValueForTypeB+6)){
+        DMSG("failed to set registers for type B\n");
+        return;
+    }
+}
+
+void PN532::restorePN532RegsForTypeB()
+{
+    if(!writeRegister(6, registerAddrForTypeB, registerValueBackup)){
+        DMSG("failed to restore registers for type B\n");
+        return;
+    }
+    if(!writeRegister(6, registerAddrForTypeB+6, registerValueBackup+6)){
+        DMSG("failed to restore registers for type B\n");
+        return;
+    }
+}
+
+const uint16_t PN532::registerAddrForTypeB[12] =
+{
+    PN53X_REG_CIU_Mode,
+    PN53X_REG_CIU_TxAuto,
+    PN53X_REG_CIU_TxMode,
+    PN53X_REG_CIU_RxMode,
+    PN53X_REG_CIU_TypeB,
+    PN53X_REG_CIU_Demod,
+    PN53X_REG_CIU_GsNOn,
+    PN53X_REG_CIU_CWGsP,
+    PN53X_REG_CIU_ModGsP,
+    PN53X_REG_CIU_RxThreshold,
+    PN53X_REG_CIU_ModWidth,
+    PN53X_REG_CIU_ManualRCV,
+};
+
+const uint8_t PN532::registerValueForTypeB[12] = 
+{
+    0xff,
+    0x00,
+    0x03,
+    0x03,
+    0x03,
+    0x4d,
+    0xff,
+    0x3f,
+    0x18,
+    0x4d,
+    0x68,
+    0x10,
+};
 

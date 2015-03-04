@@ -80,7 +80,7 @@ int16_t PN532_I2C::readResponse(uint8_t buf[], uint8_t len, uint16_t timeout)
     uint16_t time = 0;
 
     do {
-        if (_wire->requestFrom(PN532_I2C_ADDRESS, len + 2)) {
+        if (_wire->requestFrom(PN532_I2C_ADDRESS, len + 10)) {
             if (read() & 1) {  // check first byte --- status
                 break;         // PN532 is ready
             }
