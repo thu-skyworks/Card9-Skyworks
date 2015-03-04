@@ -9,11 +9,13 @@
 
 const int led = 13; //LED pin config
 byte mac[] = {0xDE, 0xAD, 0x00, 0x09, 0x00, 0x09};
-#define SERVER_HOST "192.168.1.30"
+#define SERVER_HOST "192.168.200.1"
 #define SERVER_PORT 39999
 #define MAX_CONNECT_RETRIES 5
 #define MAX_PACKET_SIZE 16
+// #define USE_DHCP
 
+IPAddress myip(192, 168, 200, 2);
 EthernetClient client;
 Door door;
 Alarm alarm;
@@ -53,8 +55,8 @@ void setup() {
  
   // Open serial communications and wait for port to open:
   Serial.begin(9600);
+#if 0
   // this check is only needed on the Leonardo:
-#if 1
   while (!Serial) {
     ; // wait for serial port to connect. Needed for Leonardo only
   }
@@ -63,6 +65,7 @@ void setup() {
 
   rfid.Init(); 
 
+#ifdef USE_DHCP
   // start the Ethernet connection:
   Serial.println("Trying to get an IP address using DHCP");
 
@@ -71,6 +74,10 @@ void setup() {
     ErrorDhcp();
     //software_Reset();
   }
+#else
+  Ethernet.begin(mac, myip);
+#endif
+
   // print your local IP address:
   Serial.print("My IP address: ");
   IPAddress ip = Ethernet.localIP();
