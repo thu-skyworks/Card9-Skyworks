@@ -9,16 +9,17 @@
 
 #define DetectorSwitchDelay 80
 #define LongPressThreshold 3000
-#define DoorOpenTimeOut  5000
+#define DoorPreparedOpenTimeOut  5000
+#define DoorOpenedTimeOut  20000
 
 class Door
 {
     enum DoorStateDef
     {
-        DoorLocked, DoorPreparedOpen, DoorOpened
+        DoorLocked, DoorPreparedOpen, DoorOpened, DoorOpenTimedOut
     };
     DoorStateDef state;
-    unsigned long preparedTimer;
+    unsigned long preparedTimer, openedTimer;
     unsigned long lastDectTime;
     unsigned char lastDectVal;
     bool detect(); //return true if lock detected door opened

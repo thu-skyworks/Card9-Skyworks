@@ -48,14 +48,27 @@ bool Door::UpdateState()
         }
         break;
     case DoorPreparedOpen:
-        if (millis() - preparedTimer > DoorOpenTimeOut) {
+        if (millis() - preparedTimer > DoorPreparedOpenTimeOut) {
             digitalWrite(lockMagnetPin, HIGH);
+            openedTimer = millis();
             state = DoorOpened;
             Serial.println("DoorOpened");
             sendEventPacket(DoorDidOpen);
         }
         break;
     case DoorOpened:
+        if (!detect()) {
+            digitalWrite(lockMagnetPin, HIGH);
+            state = DoorLocked;
+            Serial.println("DoorLocked");
+            sendEventPacket(DoorDidClose);
+        } else if(millis() - openedTimer > DoorOpenedTimeOut) {
+            Serial.println("DoorOpenTimedOut");
+            state = DoorOpenTimedOut;
+            return true;
+        }
+        break;
+    case DoorOpenTimedOut:
         if (!detect()) {
             digitalWrite(lockMagnetPin, HIGH);
             state = DoorLocked;
