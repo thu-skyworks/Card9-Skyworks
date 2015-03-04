@@ -33,16 +33,22 @@ void RFID::Poll()
       pn532.resetConfigFor14443B();
       card = Card_None;
     }
-  }else if(card == Card_14443A){
-    pn532.inRelease();
-    card = Card_None;
   }
 
   // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
   // 'uid' will be populated with the UID, and uidLength will indicate
   // if the uid is 4 bytes (Mifare Classic) or 7 bytes (Mifare Ultralight)
   success = pn532.readPassiveTargetID(PN532_MIFARE_ISO14443A, &uid[0], &uidLength, 200);
-  
+  if(card == Card_14443A){
+    if(success){
+      //Card doesn't leave yet since last detected
+      pn532.inRelease(0); //Release all cards
+      return;
+    }else{
+      card = Card_None;
+    }
+  }
+
   if (success) {
     Serial.println("Found a card!");
     Serial.print("UID Length: ");Serial.print(uidLength, DEC);Serial.println(" bytes");
@@ -52,6 +58,7 @@ void RFID::Poll()
       Serial.print(" 0x");Serial.print(uid[i], HEX); 
     }
     Serial.println("");
+    pn532.inRelease(0); //Release all cards
     card = Card_14443A;
     found = true;
   }
