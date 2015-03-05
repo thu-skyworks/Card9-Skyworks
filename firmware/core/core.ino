@@ -175,8 +175,44 @@ void renewDhcp()
   }
 }
 
+void networkTask()
+{
+  static uint8_t connectRetries = 0;
+  static bool bConnecting = false;
+  if(bConnecting) {
+    if(!client.connecting()) {
+      bConnecting = false;
+      if(client.connected()) {
+        Serial.println("connected");
+        connectRetries = 0;
+        digitalWrite(led, HIGH);
+      }else {
+        Serial.println("connecting failed");
+        if(connectRetries > MAX_CONNECT_RETRIES)
+          ErrorConnect();
+      }
+    }
+  }else if (!client.connected()) { //connection lost
+    digitalWrite(led, LOW);
+    client.stop();
+    Serial.println("Trying to connect server.");
+    connectRetries++;
+    if(client.connect(SERVER_HOST, SERVER_PORT) > 0) {
+      Serial.println("bConnecting = true");
+      bConnecting = true;
+    }else {
+      Serial.println("Error occurred in client.connect()");
+    }
+  }else {
+    while (client.available() > 0) {
+      receivePacket(client.read());
+    }
+  }
+
+  renewDhcp();
+}
+
 void loop() {
-  static uint8_t connect_retries = 0;
 
   button.Check();
 
@@ -204,27 +240,6 @@ void loop() {
     rfid.Next();
   }
 
-  if (!client.connected()) {
-    digitalWrite(led, LOW);
-    client.stop();
-    
-    Serial.println();
-    Serial.println("Trying to connect server.");
-    connect_retries++;
-    if(client.connect(SERVER_HOST, SERVER_PORT)>0){
-      Serial.println("connected");
-      connect_retries = 0;
-      digitalWrite(led, HIGH);
-    }else{
-      if(connect_retries <= MAX_CONNECT_RETRIES)
-        return;
-      ErrorConnect();
-      //  software_Reset();
-    }
-  }
-  while (client.available() > 0){
-    receivePacket(client.read());
-  }
-  renewDhcp();
+  networkTask();
 }
 

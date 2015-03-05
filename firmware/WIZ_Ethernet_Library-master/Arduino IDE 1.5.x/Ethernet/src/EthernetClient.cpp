@@ -20,6 +20,12 @@ EthernetClient::EthernetClient() : _sock(MAX_SOCK_NUM) {
 EthernetClient::EthernetClient(uint8_t sock) : _sock(sock) {
 }
 
+void EthernetClient::initClientSrcPort(uint16_t srcport) {
+  if(srcport < 1024)
+    return;
+  _srcport = srcport;
+}
+
 int EthernetClient::connect(const char* host, uint16_t port) {
   // Look up the host first
   int ret = 0;
@@ -59,15 +65,21 @@ int EthernetClient::connect(IPAddress ip, uint16_t port) {
     return 0;
   }
 
-  while (status() != SnSR::ESTABLISHED) {
+  return 1;
+}
+
+int EthernetClient::connecting()
+{
+  if (status() != SnSR::ESTABLISHED) {
     delay(1);
     if (status() == SnSR::CLOSED) {
       _sock = MAX_SOCK_NUM;
       return 0;
     }
+    return 1;
+  }else {
+    return 0;
   }
-
-  return 1;
 }
 
 size_t EthernetClient::write(uint8_t b) {

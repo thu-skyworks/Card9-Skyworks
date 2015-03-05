@@ -12,8 +12,10 @@ public:
   EthernetClient(uint8_t sock);
 
   uint8_t status();
+  void initClientSrcPort(uint16_t srcport);
   virtual int connect(IPAddress ip, uint16_t port);
   virtual int connect(const char *host, uint16_t port);
+  virtual int connecting();
   virtual size_t write(uint8_t);
   virtual size_t write(const uint8_t *buf, size_t size);
   virtual int available();
