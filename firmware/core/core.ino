@@ -124,6 +124,8 @@ void parsePacket(packet* p)
 void sendEventPacket(uint8_t eventType)
 {
   struct packet p;
+  if(!client.connected())
+    return;
   p.characteristicAndVersion = PacketIdentifier;
   p.type = PacketTypeEvent;
   p.payloadSize = sizeof(eventPayload);
@@ -133,6 +135,8 @@ void sendEventPacket(uint8_t eventType)
 
 void sendAuthPacket(uint8_t uidLen, uint8_t* uid)
 {
+  if(!client.connected())
+    return;
   struct packet *p = (packet*)new char[sizeof(packet) + uidLen];
   p->characteristicAndVersion = PacketIdentifier;
   p->type = PacketTypeRequest;
