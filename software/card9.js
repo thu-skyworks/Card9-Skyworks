@@ -14,16 +14,28 @@ var server = net.createServer(function(c) { //'connection' listener
     client: client,
     reason: 'System',
   });
+  var timerId = setInterval(function(){
+    c.write(encoder.command(defines.commands.heartBeep));
+  }, 3000);
+  var cleanAction = function(){
+    local.removeListener('command', commandListener);
+    c.end();
+    clearInterval(timerId);
+  }
+  c.on('end', cleanAction);
+  c.on('error', cleanAction);
   c.on('end', function() {
     logger({
 			event: 'Client disconnected',
 			client: client,
 			reason: 'System',
     });
-    local.removeListener('command', commandListener);
   }).on('error', function(){
-  	c.end();
-    local.removeListener('command', commandListener);
+  	logger({
+			event: 'Client connection lost',
+			client: client,
+			reason: 'System',
+    });
   });
   var commandListener = function(command){
   	switch(command){

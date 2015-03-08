@@ -27,10 +27,12 @@ module.exports = {
 		doDoorOpen: 0,
 		doAlarmOn: 1,
 		doAlarmOff: 2,
+		heartBeep: 3,
 		map: [
 			"doDoorOpen",
 			"doAlarmOn",
 			"doAlarmOff",
+			"heartBeep"
 		],
 	},
 	requests: {
