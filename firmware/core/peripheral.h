@@ -8,6 +8,7 @@
 #define alarmPin      6
 
 #define DetectorSwitchDelay 80
+#define ValidPressThreshold 10
 #define LongPressThreshold 3000
 #define DoorPreparedOpenTimeOut  5000
 #define DoorOpenedTimeOut  20000
@@ -56,7 +57,7 @@ public:
         ActionNone, ActionPressed, ActionLongPressed
     };
 private:
-    unsigned long lastChanged, pressTime;
+    unsigned long pressTime;
     unsigned char lastState;
     Action latestAction;
 public:

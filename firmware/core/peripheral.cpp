@@ -100,7 +100,6 @@ void Button::Init()
     pinMode(buttonPin, INPUT);
     digitalWrite(buttonPin, HIGH);//enable pull-up
     lastState = digitalRead(buttonPin);
-    lastChanged = millis();
     latestAction = ActionNone;
 }
 
@@ -108,19 +107,23 @@ void Button::Check()
 {
     unsigned long now = millis();
     uint8_t val = digitalRead(buttonPin);
-    if((val^lastState) && now > lastChanged){
-        lastChanged = now;
+    if((val^lastState)){
         lastState = val;
         if(val == LOW){ //key down
             pressTime = now;
             Serial.println("Button down");
         }else{ //key up
-            if(now - pressTime > LongPressThreshold){
-                latestAction = ActionLongPressed;
-            }else{
+            if(now - pressTime > ValidPressThreshold
+                && now - pressTime < LongPressThreshold){
+
                 latestAction = ActionPressed;
             }
             Serial.println("Button up");
+        }
+    }else{
+        if(val == LOW && now - pressTime > LongPressThreshold){
+            latestAction = ActionLongPressed;
+            pressTime = now;
         }
     }
 }
