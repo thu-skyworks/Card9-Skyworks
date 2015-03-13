@@ -20,7 +20,7 @@ void RFID::Poll()
   }
   
   unsigned long currentMillis = millis();
-  if(currentMillis - previousPollMillis > 300){
+  if(currentMillis - previousPollMillis > 100){
     previousPollMillis = currentMillis;
   }else{
     return;
@@ -52,7 +52,7 @@ void RFID::Poll()
   }
 
   if (success) {
-    Serial.println("Found a card!");
+    Serial.println("Found Mifare card!");
     Serial.print("UID Length: ");Serial.print(uidLength, DEC);Serial.println(" bytes");
     Serial.print("UID Value: ");
     for (uint8_t i=0; i < uidLength; i++) 
@@ -93,6 +93,8 @@ void RFID::Poll()
       card = Card_14443B;
       found = true;
       SetLedOn(true);
+    }else{
+      pn532.resetConfigFor14443B();
     }
   }else{
 
