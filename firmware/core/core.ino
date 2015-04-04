@@ -192,8 +192,8 @@ void networkTask()
         digitalWrite(led, HIGH);
       }else {
         Serial.println("connecting failed");
-        if(connectRetries > MAX_CONNECT_RETRIES)
-          ErrorConnect();
+//        if(connectRetries > MAX_CONNECT_RETRIES)
+//          ErrorConnect();
       }
     }
   }else if (!client.connected()) { //connection lost
