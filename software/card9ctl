@@ -33,7 +33,7 @@ switch(process.argv[2]){
 if(command != -1){
 	var client = net.createConnection({path: config.sockFile}, function(){
 		client.write(new Buffer([command]));
-		client.once('drain', function(){
+		client.once('close', function(){
 			client.end();
 			console.log("成功发送命令。");
 		});
