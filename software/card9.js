@@ -1,4 +1,7 @@
-#!/usr/bin/env node
+#!/bin/sh
+
+//; exec continuation $0 -e -c
+
 var net = require('net');
 var config = require('./config');
 var logger = require('./logger');
@@ -7,6 +10,9 @@ var defines = require('./utils/defines');
 var cardAuth = require('./auth/cardAuth');
 var encoder = require('./utils/ProtocolBinarify');
 var local = require('./utils/LocalServer');
+
+var globalEvent = require('./globalEvent');
+
 var server = net.createServer(function(c) { //'connection' listener
   var client = c.remoteAddress + ':' + c.remotePort;
   logger({
@@ -71,6 +77,7 @@ var server = net.createServer(function(c) { //'connection' listener
   						reason: 'Client',
   						data: p.data.param,
   					});
+  					globalEvent.emit('cardScan', p.data.param);
 						cardAuth(p.data.param, function(err, pass){
 							if(err){
 								logger({

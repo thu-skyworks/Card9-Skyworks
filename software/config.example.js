@@ -3,7 +3,7 @@ module.exports = {
 	bindPort   : 57005,
 	logFile    : "./access.log",
 	sockFile   : "/tmp/card9.sock",
-	accounts9  : "https://accounts.net9.org",
+	dbAddr     : "mongodb://localhost/card9",
   setUid     : "", //should not be root; should have access to the source code
 	interfaceSecret : "Example",
 	acceptGroup: ["access-door"],
