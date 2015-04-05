@@ -26,7 +26,9 @@ var server = net.createServer(function(c){
 });
 server.create = function(sockFile, callback){
 	fs.unlink(sockFile, function(){
-		server.listen(sockFile, callback);
+		server.listen(sockFile, callback).once('listen', function(){
+		  fs.chmodSync(sockFile, 0755);
+		});
 	});
 };
 

@@ -34,7 +34,7 @@ switch(process.argv[2]){
 	  }
 	default:
 		usage();
-		process.stderr.once('drain', function(){
+		process.stderr.once('close', function(){
 			process.exit(1);
 		});
 		break;
