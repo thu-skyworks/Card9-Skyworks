@@ -9,8 +9,9 @@ var server = net.createServer(function(c){
 });
 server.create = function(sockFile, callback){
 	fs.unlink(sockFile, function(){
-		server.listen(sockFile, callback).once('listen', function(){
+		server.listen(sockFile, function(){
 		  fs.chmodSync(sockFile, 0755);
+		  callback();
 		});
 	});
 };
