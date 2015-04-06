@@ -77,7 +77,7 @@ if(command == -2){
           identity = new Buffer(identityLength);
         }
       }else{
-        identity[ 3 - (--identityLength)] = chunk[i];
+        identity[ identity.length - 1 - (--identityLength)] = chunk[i];
         if(identityLength == 0){
           globalEvent.emit('card', identity);
           readLenth = 0;
