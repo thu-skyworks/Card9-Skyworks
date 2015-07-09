@@ -225,20 +225,21 @@ void loop() {
   }
   Button::Action a = button.LatestAction();
   if(a == Button::ActionPressed){
-    sendEventPacket(DoorReleaseDidTriggered);
     door.Open();
+    sendEventPacket(DoorReleaseDidTriggered);
   }else if(a == Button::ActionLongPressed){
     alarm.Off();
   }
 
   rfid.Poll();
   if(rfid.Found()){
-    sendEventPacket(CardDidScan);
     if(rfid.SkeletonKey()){
       door.Open();
+      sendEventPacket(CardDidScan);
     }else{
       uint8_t uidLen;
       uint8_t* uid = rfid.GetUid(uidLen);
+      sendEventPacket(CardDidScan);
       sendAuthPacket(uidLen, uid);
     }
     rfid.Next();
