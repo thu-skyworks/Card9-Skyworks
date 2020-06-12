@@ -6,7 +6,7 @@
     "start": "sudo ./card9.js"
   },
   "dependencies": {
-    "mongoose": "^4.0.1",
+    "mongoose": "^5.7.5",
     "request": "^2.53.0",
     "coffee-script": "",
     "continuation": "~0.1.6"
